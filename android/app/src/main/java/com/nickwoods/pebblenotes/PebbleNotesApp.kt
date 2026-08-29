@@ -39,7 +39,7 @@ import com.nickwoods.pebblenotes.data.Note
 import java.text.DateFormat
 import java.util.Date
 import kotlin.math.abs
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 private val Categories = listOf(
     "Watch next", "Weight", "TODO", "Presents", "Talking points",
@@ -288,10 +288,22 @@ private fun NoteList(
     onReorder: (List<Note>) -> Unit,
 ) {
     val listState = rememberLazyListState()
-    val scope = rememberCoroutineScope()
     val currentNotes by rememberUpdatedState(notes)
     var draggedId by remember { mutableStateOf<String?>(null) }
     var draggedOffset by remember { mutableFloatStateOf(0f) }
+    var autoScrollVelocity by remember { mutableFloatStateOf(0f) }
+
+    LaunchedEffect(draggedId) {
+        while (draggedId != null) {
+            if (autoScrollVelocity != 0f) {
+                val consumed = listState.scrollBy(autoScrollVelocity)
+                // Keep the dragged card under the finger while the list moves beneath it.
+                draggedOffset += consumed
+            }
+            delay(16)
+        }
+    }
+
     LazyColumn(
         state = listState,
         modifier = Modifier.fillMaxSize(),
@@ -310,9 +322,21 @@ private fun NoteList(
                     .graphicsLayer { translationY = if (dragging) draggedOffset else 0f },
                 dragModifier = Modifier.pointerInput(note.id) {
                     detectDragGesturesAfterLongPress(
-                        onDragStart = { draggedId = note.id; draggedOffset = 0f },
-                        onDragCancel = { draggedId = null; draggedOffset = 0f },
-                        onDragEnd = { draggedId = null; draggedOffset = 0f },
+                        onDragStart = {
+                            draggedId = note.id
+                            draggedOffset = 0f
+                            autoScrollVelocity = 0f
+                        },
+                        onDragCancel = {
+                            draggedId = null
+                            draggedOffset = 0f
+                            autoScrollVelocity = 0f
+                        },
+                        onDragEnd = {
+                            draggedId = null
+                            draggedOffset = 0f
+                            autoScrollVelocity = 0f
+                        },
                         onDrag = { change, dragAmount ->
                             change.consume()
                             draggedOffset += dragAmount.y
@@ -332,9 +356,17 @@ private fun NoteList(
                             }
                             val viewportStart = listState.layoutInfo.viewportStartOffset
                             val viewportEnd = listState.layoutInfo.viewportEndOffset
+                            val edgeZone = 130f
                             when {
-                                draggedCenter < viewportStart + 100 -> scope.launch { listState.scrollBy(-35f) }
-                                draggedCenter > viewportEnd - 100 -> scope.launch { listState.scrollBy(35f) }
+                                draggedCenter < viewportStart + edgeZone -> {
+                                    val proximity = ((viewportStart + edgeZone - draggedCenter) / edgeZone).coerceIn(0f, 1f)
+                                    autoScrollVelocity = -(6f + 24f * proximity)
+                                }
+                                draggedCenter > viewportEnd - edgeZone -> {
+                                    val proximity = ((draggedCenter - (viewportEnd - edgeZone)) / edgeZone).coerceIn(0f, 1f)
+                                    autoScrollVelocity = 6f + 24f * proximity
+                                }
+                                else -> autoScrollVelocity = 0f
                             }
                         },
                     )
