@@ -127,7 +127,7 @@ fun PebbleNotesApp(viewModel: NotesViewModel = viewModel()) {
             containerColor = TerminalBlack,
         ) { insets ->
             Column(modifier = Modifier.fillMaxSize().padding(insets)) {
-                CategoryPicker(selectedCategory) { selectedCategory = it }
+                CategoryPicker(selectedCategory, state.notes) { selectedCategory = it }
                 val visibleNotes = if (selectedCategory == "All") state.notes else state.notes.filter { it.category == selectedCategory }
                 ExportRow(selectedCategory, visibleNotes, state.notes)
                 state.error?.let { error -> ErrorCard(error, viewModel::clearError) }
@@ -199,7 +199,7 @@ fun PebbleNotesApp(viewModel: NotesViewModel = viewModel()) {
 }
 
 @Composable
-private fun CategoryPicker(selected: String, onSelected: (String) -> Unit) {
+private fun CategoryPicker(selected: String, notes: List<Note>, onSelected: (String) -> Unit) {
     val compactNames = mapOf(
         "All" to "all",
         "Watch next" to "watch next",
@@ -219,6 +219,7 @@ private fun CategoryPicker(selected: String, onSelected: (String) -> Unit) {
             ) {
                 row.forEach { category ->
                     val active = selected == category
+                    val count = if (category == "All") notes.size else notes.count { it.category == category }
                     Surface(
                         modifier = Modifier.weight(1f).height(30.dp).clickable { onSelected(category) },
                         color = if (active) TerminalDim else TerminalSurface,
@@ -226,16 +227,18 @@ private fun CategoryPicker(selected: String, onSelected: (String) -> Unit) {
                         border = BorderStroke(1.dp, if (active) TerminalGreen else MaterialTheme.colorScheme.outline),
                         shape = MaterialTheme.shapes.extraSmall,
                     ) {
-                        Box(
+                        Row(
                             modifier = Modifier.fillMaxSize().padding(horizontal = 6.dp),
-                            contentAlignment = Alignment.CenterStart,
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
                                 text = compactNames[category] ?: category.lowercase(),
+                                modifier = Modifier.weight(1f),
                                 fontSize = 9.sp,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
+                            Text("[$count]", fontSize = 9.sp)
                         }
                     }
                 }
