@@ -1,0 +1,13 @@
+.idea/
+*.iml
+*.apk
+android/.gradle/
+android/**/build/
+android/local.properties
+worker/node_modules/
+worker/.wrangler/
+worker/worker-configuration.d.ts
+.dev.vars
+.env
+.env.*
+*.jks
