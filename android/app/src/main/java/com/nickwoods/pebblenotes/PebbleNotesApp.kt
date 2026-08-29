@@ -4,6 +4,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -24,6 +25,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.edit
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -125,7 +127,7 @@ fun PebbleNotesApp(viewModel: NotesViewModel = viewModel()) {
             containerColor = TerminalBlack,
         ) { insets ->
             Column(modifier = Modifier.fillMaxSize().padding(insets)) {
-                CategoryPicker(selectedCategory, state.notes) { selectedCategory = it }
+                CategoryPicker(selectedCategory) { selectedCategory = it }
                 val visibleNotes = if (selectedCategory == "All") state.notes else state.notes.filter { it.category == selectedCategory }
                 ExportRow(selectedCategory, visibleNotes, state.notes)
                 state.error?.let { error -> ErrorCard(error, viewModel::clearError) }
@@ -197,30 +199,47 @@ fun PebbleNotesApp(viewModel: NotesViewModel = viewModel()) {
 }
 
 @Composable
-private fun CategoryPicker(selected: String, notes: List<Note>, onSelected: (String) -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+private fun CategoryPicker(selected: String, onSelected: (String) -> Unit) {
+    val compactNames = mapOf(
+        "All" to "all",
+        "Watch next" to "watch next",
+        "Talking points" to "talking points",
+        "Bars and Restaurants" to "bars + restaurants",
+        "Fiction Ideas" to "fiction ideas",
+        "Aphorisms and maxims" to "aphorisms + maxims",
+    )
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Tabs.chunked((Tabs.size + 1) / 2).forEach { column ->
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+        Tabs.chunked(3).forEach { row ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                column.forEach { category ->
-                    val count = if (category == "All") notes.size else notes.count { it.category == category }
-                    FilterChip(
-                        modifier = Modifier.fillMaxWidth(),
-                        selected = selected == category,
-                        onClick = { onSelected(category) },
-                        label = { Text("${category.lowercase()} [$count]", maxLines = 2) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            containerColor = TerminalSurface,
-                            selectedContainerColor = TerminalDim,
-                            selectedLabelColor = TerminalGreen,
-                        ),
-                    )
+                row.forEach { category ->
+                    val active = selected == category
+                    Surface(
+                        modifier = Modifier.weight(1f).height(30.dp).clickable { onSelected(category) },
+                        color = if (active) TerminalDim else TerminalSurface,
+                        contentColor = if (active) TerminalGreen else MaterialTheme.colorScheme.onSurfaceVariant,
+                        border = BorderStroke(1.dp, if (active) TerminalGreen else MaterialTheme.colorScheme.outline),
+                        shape = MaterialTheme.shapes.extraSmall,
+                    ) {
+                        Box(
+                            modifier = Modifier.fillMaxSize().padding(horizontal = 6.dp),
+                            contentAlignment = Alignment.CenterStart,
+                        ) {
+                            Text(
+                                text = compactNames[category] ?: category.lowercase(),
+                                fontSize = 9.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
                 }
+                repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
             }
         }
     }
