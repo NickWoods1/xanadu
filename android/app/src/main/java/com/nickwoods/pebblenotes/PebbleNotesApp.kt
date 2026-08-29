@@ -30,8 +30,6 @@ import androidx.core.content.edit
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nickwoods.pebblenotes.data.Note
-import java.text.DateFormat
-import java.util.Date
 
 private val Categories = listOf(
     "Watch next", "Weight", "TODO", "Presents", "Talking points",
@@ -141,6 +139,7 @@ fun PebbleNotesApp(viewModel: NotesViewModel = viewModel()) {
                         else -> NoteList(
                             notes = visibleNotes,
                             onRetry = viewModel::retry,
+                            onDelete = viewModel::delete,
                             onEdit = { editingNote = it },
                         )
                     }
@@ -246,6 +245,7 @@ private fun ExportRow(selected: String, visibleNotes: List<Note>, allNotes: List
 private fun NoteList(
     notes: List<Note>,
     onRetry: (Note) -> Unit,
+    onDelete: (Note) -> Unit,
     onEdit: (Note) -> Unit,
 ) {
     LazyColumn(
@@ -257,6 +257,7 @@ private fun NoteList(
             NoteCard(
                 note = note,
                 onRetry = onRetry,
+                onDelete = onDelete,
                 onEdit = onEdit,
             )
         }
@@ -267,10 +268,12 @@ private fun NoteList(
 private fun NoteCard(
     note: Note,
     onRetry: (Note) -> Unit,
+    onDelete: (Note) -> Unit,
     onEdit: (Note) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var showLlmVersion by rememberSaveable(note.id) { mutableStateOf(false) }
+    var confirmDelete by rememberSaveable(note.id) { mutableStateOf(false) }
     Card(
         modifier = modifier.fillMaxWidth().clickable { showLlmVersion = !showLlmVersion },
         colors = CardDefaults.cardColors(containerColor = TerminalSurface),
@@ -301,11 +304,11 @@ private fun NoteCard(
                 )
             }
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(
-                    formatTime(note.recordedAt),
-                    modifier = Modifier.padding(vertical = 8.dp),
-                    style = MaterialTheme.typography.labelSmall,
-                )
+                OutlinedButton(
+                    onClick = { confirmDelete = true },
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = TerminalError),
+                ) { Text("delete") }
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -321,6 +324,23 @@ private fun NoteCard(
                 }
             }
         }
+    }
+    if (confirmDelete) {
+        AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            title = { Text("delete note?") },
+            text = { Text("This permanently removes the note from Xanadu and its synced server copy.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        confirmDelete = false
+                        onDelete(note)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = TerminalError, contentColor = TerminalBlack),
+                ) { Text("delete") }
+            },
+            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("cancel") } },
+        )
     }
 }
 
@@ -469,6 +489,3 @@ private fun ConnectionDialog(
 }
 
 private fun exportNotes(notes: List<Note>): String = notes.joinToString("\n\n") { it.rawText }
-
-private fun formatTime(milliseconds: Long): String =
-    DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(milliseconds)).lowercase()

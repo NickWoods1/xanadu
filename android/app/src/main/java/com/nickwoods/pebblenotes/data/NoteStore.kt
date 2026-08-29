@@ -87,6 +87,10 @@ class NoteStore(context: Context) : SQLiteOpenHelper(context, "pebble_notes.db",
         notes
     }
 
+    fun delete(id: String) {
+        writableDatabase.delete("notes", "id = ?", arrayOf(id))
+    }
+
     private fun Note.toValues() = ContentValues().apply {
         put("id", id)
         put("raw_text", rawText)

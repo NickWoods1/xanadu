@@ -117,6 +117,24 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun delete(note: Note) {
+        val notesApi = configuredApi() ?: return
+        viewModelScope.launch {
+            mutableState.value = mutableState.value.copy(loading = true, error = null)
+            runCatching { notesApi.deleteNote(authHeader(), note.id) }
+                .onSuccess {
+                    withContext(Dispatchers.IO) { noteStore.delete(note.id) }
+                    mutableState.value = mutableState.value.copy(
+                        notes = mutableState.value.notes.filterNot { it.id == note.id },
+                        loading = false,
+                    )
+                }
+                .onFailure { error ->
+                    mutableState.value = mutableState.value.copy(loading = false, error = friendlyMessage(error))
+                }
+        }
+    }
+
     fun edit(note: Note, title: String, refinedText: String, rawText: String, finished: (Boolean) -> Unit) {
         val notesApi = configuredApi()
         if (notesApi == null) {

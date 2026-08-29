@@ -6,6 +6,7 @@ import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.PATCH
@@ -53,6 +54,12 @@ interface NotesApi {
         @Path("id") id: String,
         @Body request: EditNoteRequest,
     ): Note
+
+    @DELETE("api/notes/{id}")
+    suspend fun deleteNote(
+        @Header("Authorization") authorization: String,
+        @Path("id") id: String,
+    )
 
     @PUT("api/notes/order")
     suspend fun reorderNotes(
