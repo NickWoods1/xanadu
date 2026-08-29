@@ -138,7 +138,13 @@ async function retryNote(id: string, env: Env): Promise<Response> {
 
   try {
     const classification = await classifyNote(note.raw_text, env.OPENAI_API_KEY);
-    const updated: NoteRow = { ...note, ...classification, status: "processed" };
+    const updated: NoteRow = {
+      ...note,
+      title: classification.title,
+      refined_text: classification.refinedText,
+      category: classification.category,
+      status: "processed",
+    };
     await env.DB.prepare(
       "UPDATE notes SET title = ?, refined_text = ?, category = ?, status = ? WHERE id = ?",
     ).bind(updated.title, updated.refined_text, updated.category, updated.status, id).run();

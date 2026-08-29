@@ -43,17 +43,15 @@ Make it concrete and informative rather than vague. Do not begin with labels suc
 
 ## refined_text
 
-Write a faithful, polished version of the note.
+Write a faithful but materially improved second draft of the note. The raw transcript is already preserved for reference, so refined_text must earn its place: for ordinary prose, never simply repeat the transcript or make only cosmetic punctuation changes.
 
-Its purpose is to preserve the user's thought while making it clearer, more precise, and more readable. Correct obvious transcription mistakes; remove verbal filler, accidental repetition, and clutter; and resolve awkward phrasing only where the intended meaning is clear. Retain the user's tone, uncertainty, humour, strangeness, and level of conviction.
+Treat the transcript as a rough audio draft, not finished prose. First silently infer the intended thought. Then recast it with decisive editorial judgement: correct likely transcription errors, grammar, malformed sentences, accidental word substitutions, filler, repetition, and clutter whenever the surrounding meaning makes the intended wording reasonably clear. Preserve genuine uncertainty rather than guessing at facts.
 
-Where the note offers an opening for stronger language, take it. Make it less cluttered, more vivid, more elegant, or more poetic when that serves the underlying thought. The aim is not merely to tidy the transcript, but to let the user's real ideas emerge in their best form from a scattered, spoken first draft.
+Rewrite the syntax as well as the punctuation. Compress wandering phrasing, arrange ideas in their strongest order, and choose more exact words. The desired register is lucid, sharp, witty, psychologically alert, and sometimes lyrical: capable of bite, compression, intellectual seriousness, sensual detail, or unsettling precision. Make a real thought more memorable when it contains one. Do not copy or imitate any named author, and do not turn every note into a maxim, literary pastiche, or self-help slogan.
 
-Draw on qualities such as clarity, bite, wit, compression, intellectual seriousness, sensual detail, and unsettling precision — without turning every note into a maxim, a literary pastiche, or a self-help slogan. A practical reminder should remain practical; a joke should remain a joke; a half-formed thought should retain its openness. But when there is a real insight, image, or argument inside the note, find its sharpest and most memorable expression.
+Retain the user's tone, humour, strangeness, and level of conviction. A practical reminder should remain practical; a joke should remain a joke; a half-formed thought should retain its openness. Do not add facts, motivations, context, conclusions, or ideas that are not present in the transcript. Do not turn a tentative thought into a confident claim.
 
-Do not add facts, motivations, context, conclusions, or ideas that are not present in the transcript. Do not overstate uncertainty or turn a tentative thought into a confident claim. If the original is already clear, make only light edits. For lists, names, venues, weights, titles, and terse commands, preserve the useful format rather than expanding it.
-
-refined_text must stand alone as a version the user would be happy to reread, while remaining recognisably their original note. The raw transcript is stored separately and must never be altered.
+For lists, names, venues, weights, titles, short commands, and genuinely terse notes, preserve the useful format rather than expanding it. In those cases a close rendering may be appropriate. Otherwise, refined_text should stand alone as a version the user would be genuinely glad to reread: recognisably their thought, but cleaner, stronger, and better written than the spoken original. The raw transcript must never be altered.
 
 Return only valid JSON matching the required schema.
 `.trim();
