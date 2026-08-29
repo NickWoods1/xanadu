@@ -5,13 +5,10 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
-import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
@@ -24,22 +21,17 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.zIndex
 import androidx.core.content.edit
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nickwoods.pebblenotes.data.Note
 import java.text.DateFormat
 import java.util.Date
-import kotlin.math.abs
-import kotlinx.coroutines.launch
 
 private val Categories = listOf(
     "Watch next", "Weight", "TODO", "Presents", "Talking points",
@@ -150,7 +142,6 @@ fun PebbleNotesApp(viewModel: NotesViewModel = viewModel()) {
                             notes = visibleNotes,
                             onRetry = viewModel::retry,
                             onEdit = { editingNote = it },
-                            onReorder = viewModel::reorder,
                         )
                     }
                     if (state.loading && state.notes.isNotEmpty()) {
@@ -256,61 +247,17 @@ private fun NoteList(
     notes: List<Note>,
     onRetry: (Note) -> Unit,
     onEdit: (Note) -> Unit,
-    onReorder: (List<Note>) -> Unit,
 ) {
-    val listState = rememberLazyListState()
-    val scope = rememberCoroutineScope()
-    val currentNotes by rememberUpdatedState(notes)
-    var draggedId by remember { mutableStateOf<String?>(null) }
-    var draggedOffset by remember { mutableFloatStateOf(0f) }
-
     LazyColumn(
-        state = listState,
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = 12.dp, top = 8.dp, end = 12.dp, bottom = 32.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        itemsIndexed(notes, key = { _, note -> note.id }) { _, note ->
-            val dragging = draggedId == note.id
+        items(notes, key = { it.id }) { note ->
             NoteCard(
                 note = note,
                 onRetry = onRetry,
                 onEdit = onEdit,
-                modifier = Modifier
-                    .zIndex(if (dragging) 1f else 0f)
-                    .graphicsLayer { translationY = if (dragging) draggedOffset else 0f },
-                dragModifier = Modifier.pointerInput(note.id) {
-                        detectDragGesturesAfterLongPress(
-                            onDragStart = { draggedId = note.id; draggedOffset = 0f },
-                            onDragCancel = { draggedId = null; draggedOffset = 0f },
-                            onDragEnd = { draggedId = null; draggedOffset = 0f },
-                            onDrag = { change, dragAmount ->
-                                change.consume()
-                                draggedOffset += dragAmount.y
-                                val visible = listState.layoutInfo.visibleItemsInfo
-                                val draggedInfo = visible.firstOrNull { it.key == draggedId }
-                                    ?: return@detectDragGesturesAfterLongPress
-                                val draggedCenter = draggedInfo.offset + draggedOffset + draggedInfo.size / 2f
-                                val target = visible.minByOrNull { abs(draggedCenter - (it.offset + it.size / 2f)) }
-                                if (target != null && target.key != draggedId) {
-                                    val latest = currentNotes
-                                    val from = latest.indexOfFirst { it.id == draggedId }
-                                    val to = latest.indexOfFirst { it.id == target.key }
-                                    if (from >= 0 && to >= 0) {
-                                        draggedOffset += draggedInfo.offset - target.offset
-                                        val moved = latest.toMutableList().apply { add(to, removeAt(from)) }
-                                        onReorder(moved)
-                                    }
-                                }
-                                val viewportStart = listState.layoutInfo.viewportStartOffset
-                                val viewportEnd = listState.layoutInfo.viewportEndOffset
-                                when {
-                                    draggedCenter < viewportStart + 100 -> scope.launch { listState.scrollBy(-35f) }
-                                    draggedCenter > viewportEnd - 100 -> scope.launch { listState.scrollBy(35f) }
-                                }
-                            },
-                        )
-                    },
             )
         }
     }
@@ -322,39 +269,41 @@ private fun NoteCard(
     onRetry: (Note) -> Unit,
     onEdit: (Note) -> Unit,
     modifier: Modifier = Modifier,
-    dragModifier: Modifier = Modifier,
 ) {
+    var showLlmVersion by rememberSaveable(note.id) { mutableStateOf(false) }
     Card(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().clickable { showLlmVersion = !showLlmVersion },
         colors = CardDefaults.cardColors(containerColor = TerminalSurface),
         border = CardDefaults.outlinedCardBorder(),
     ) {
         Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
             Text(
-                text = note.title,
-                modifier = Modifier.fillMaxWidth().clickable { onEdit(note) },
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = TerminalGreen,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                text = note.refinedText,
-                modifier = Modifier.fillMaxWidth().clickable { onEdit(note) },
+                text = note.rawText,
+                modifier = Modifier.fillMaxWidth(),
                 style = MaterialTheme.typography.bodyMedium,
             )
-            Text("raw transcript", style = MaterialTheme.typography.labelSmall, color = TerminalGreen.copy(alpha = 0.7f))
-            Text(
-                text = note.rawText,
-                modifier = Modifier.fillMaxWidth().clickable { onEdit(note) },
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
-            )
+            if (showLlmVersion) {
+                HorizontalDivider(color = TerminalDim)
+                Text(
+                    text = note.title,
+                    modifier = Modifier.fillMaxWidth().clickable { onEdit(note) },
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = TerminalGreen,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = note.refinedText,
+                    modifier = Modifier.fillMaxWidth().clickable { onEdit(note) },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = TerminalBright,
+                )
+            }
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(
                     formatTime(note.recordedAt),
-                    modifier = dragModifier.padding(vertical = 8.dp),
+                    modifier = Modifier.padding(vertical = 8.dp),
                     style = MaterialTheme.typography.labelSmall,
                 )
                 Row(
