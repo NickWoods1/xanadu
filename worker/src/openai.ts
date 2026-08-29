@@ -19,7 +19,7 @@ export async function classifyNote(rawText: string, apiKey: string): Promise<Cla
     body: JSON.stringify({
       model: "gpt-5-nano",
       reasoning: { effort: "minimal" },
-      max_output_tokens: 120,
+      max_output_tokens: 300,
       store: false,
       instructions: CLASSIFIER_INSTRUCTIONS,
       input: rawText,
@@ -35,8 +35,9 @@ export async function classifyNote(rawText: string, apiKey: string): Promise<Cla
             properties: {
               category: { type: "string", enum: CATEGORIES },
               title: { type: "string" },
+              refined_text: { type: "string" },
             },
-            required: ["category", "title"],
+            required: ["category", "title", "refined_text"],
           },
         },
       },

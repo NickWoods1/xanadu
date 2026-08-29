@@ -17,6 +17,7 @@ data class Note(
     val id: String,
     @param:Json(name = "raw_text") val rawText: String,
     val title: String,
+    @param:Json(name = "refined_text") val refinedText: String = rawText,
     val category: String,
     @param:Json(name = "recorded_at") val recordedAt: Long,
     val source: String,
@@ -26,7 +27,7 @@ data class Note(
 
 data class NotesResponse(val notes: List<Note>)
 data class NewNoteRequest(val transcription: String, val recordedAt: Long = System.currentTimeMillis())
-data class EditNoteRequest(val title: String, @param:Json(name = "raw_text") val rawText: String)
+data class EditNoteRequest(val title: String, @param:Json(name = "raw_text") val rawText: String, @param:Json(name = "refined_text") val refinedText: String)
 data class ReorderNotesRequest(val ids: List<String>)
 data class ReorderResponse(val ok: Boolean)
 

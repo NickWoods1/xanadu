@@ -3,9 +3,10 @@ import { fallbackClassification, parseClassification } from "../src/classificati
 
 describe("parseClassification", () => {
   it("accepts and trims a valid classification", () => {
-    expect(parseClassification('{"category":"TODO","title":"  Buy milk  "}')).toEqual({
+    expect(parseClassification('{"category":"TODO","title":"  Buy milk  ","refined_text":"  Buy milk  "}')).toEqual({
       category: "TODO",
       title: "Buy milk",
+      refinedText: "Buy milk",
     });
   });
 
@@ -21,7 +22,8 @@ describe("parseClassification", () => {
 describe("fallbackClassification", () => {
   it("uses the explicit temporary title", () => {
     const result = fallbackClassification("an unprocessed transcript");
-    expect(result.category).toBe("Thoughts");
+    expect(result.category).toBe("Misc");
     expect(result.title).toBe("Temporary Title - Not LLM Processed Yet");
+    expect(result.refinedText).toBe("an unprocessed transcript");
   });
 });

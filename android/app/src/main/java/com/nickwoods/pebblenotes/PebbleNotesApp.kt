@@ -41,7 +41,11 @@ import java.util.Date
 import kotlin.math.abs
 import kotlinx.coroutines.launch
 
-private val Categories = listOf("Thoughts", "TODO", "Ideas", "Words")
+private val Categories = listOf(
+    "Watch next", "Weight", "TODO", "Presents", "Talking points",
+    "Bars and Restaurants", "Thoughts", "Quotes", "Films", "Ideas",
+    "Fiction Ideas", "Names", "Aphorisms and maxims", "Misc",
+)
 private val Tabs = listOf("All") + Categories
 private val TerminalGreen = Color(0xFF67FF8F)
 private val TerminalBright = Color(0xFFB7FFCA)
@@ -164,9 +168,9 @@ fun PebbleNotesApp(viewModel: NotesViewModel = viewModel()) {
                 note = note,
                 saving = editSaving,
                 onDismiss = { if (!editSaving) editingNote = null },
-                onSave = { title, transcript ->
+                onSave = { title, refinedText, transcript ->
                     editSaving = true
-                    viewModel.edit(note, title, transcript) { success ->
+                    viewModel.edit(note, title, refinedText, transcript) { success ->
                         editSaving = false
                         if (success) editingNote = null
                     }
@@ -336,9 +340,16 @@ private fun NoteCard(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = note.rawText,
+                text = note.refinedText,
                 modifier = Modifier.fillMaxWidth().clickable { onEdit(note) },
                 style = MaterialTheme.typography.bodyMedium,
+            )
+            Text("raw transcript", style = MaterialTheme.typography.labelSmall, color = TerminalGreen.copy(alpha = 0.7f))
+            Text(
+                text = note.rawText,
+                modifier = Modifier.fillMaxWidth().clickable { onEdit(note) },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
             )
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(
@@ -365,14 +376,24 @@ private fun NoteCard(
 }
 
 @Composable
-private fun EditNoteDialog(note: Note, saving: Boolean, onDismiss: () -> Unit, onSave: (String, String) -> Unit) {
+private fun EditNoteDialog(note: Note, saving: Boolean, onDismiss: () -> Unit, onSave: (String, String, String) -> Unit) {
     var title by remember(note.id) { mutableStateOf(note.title) }
+    var refinedText by remember(note.id) { mutableStateOf(note.refinedText) }
     var transcript by remember(note.id) { mutableStateOf(note.rawText) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("edit_note") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = refinedText,
+                    onValueChange = { refinedText = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("llm version") },
+                    minLines = 3,
+                    maxLines = 8,
+                    enabled = !saving,
+                )
                 OutlinedTextField(
                     value = title,
                     onValueChange = { title = it },
@@ -394,8 +415,8 @@ private fun EditNoteDialog(note: Note, saving: Boolean, onDismiss: () -> Unit, o
         },
         confirmButton = {
             Button(
-                onClick = { onSave(title, transcript) },
-                enabled = title.isNotBlank() && transcript.isNotBlank() && !saving,
+                onClick = { onSave(title, refinedText, transcript) },
+                enabled = title.isNotBlank() && refinedText.isNotBlank() && transcript.isNotBlank() && !saving,
             ) { Text(if (saving) "saving..." else "save") }
         },
         dismissButton = { TextButton(onClick = onDismiss, enabled = !saving) { Text("cancel") } },

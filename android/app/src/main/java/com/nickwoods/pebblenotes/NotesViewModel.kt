@@ -117,21 +117,21 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun edit(note: Note, title: String, rawText: String, finished: (Boolean) -> Unit) {
+    fun edit(note: Note, title: String, refinedText: String, rawText: String, finished: (Boolean) -> Unit) {
         val notesApi = configuredApi()
         if (notesApi == null) {
             finished(false)
             return
         }
         viewModelScope.launch {
-            val edited = note.copy(title = title.trim(), rawText = rawText.trim())
+            val edited = note.copy(title = title.trim(), refinedText = refinedText.trim(), rawText = rawText.trim())
             withContext(Dispatchers.IO) { noteStore.upsertAll(listOf(edited)) }
             mutableState.value = mutableState.value.copy(
                 notes = mutableState.value.notes.map { if (it.id == edited.id) edited else it },
                 error = null,
             )
             runCatching {
-                notesApi.updateNote(authHeader(), note.id, EditNoteRequest(edited.title, edited.rawText))
+                notesApi.updateNote(authHeader(), note.id, EditNoteRequest(edited.title, edited.rawText, edited.refinedText))
             }.onSuccess { saved ->
                 withContext(Dispatchers.IO) { noteStore.upsertAll(listOf(saved)) }
                 mutableState.value = mutableState.value.copy(

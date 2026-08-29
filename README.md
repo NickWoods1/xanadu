@@ -1,7 +1,8 @@
 # Xanadu
 
 A small open-source Android app and Cloudflare Worker that turns Pebble Index
-transcripts into four lists: `Thoughts`, `TODO`, `Ideas`, and `Words`.
+transcripts into focused lists such as `Thoughts`, `TODO`, `Watch next`, `Ideas`, and `Quotes`.
+Each note keeps the raw transcript and receives an LLM-generated title, category, and polished version.
 
 ```text
 Index ring → Pebble app → HTTPS webhook → Cloudflare Worker + OpenAI → Xanadu

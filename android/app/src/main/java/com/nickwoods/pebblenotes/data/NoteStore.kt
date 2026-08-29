@@ -5,7 +5,7 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 
-class NoteStore(context: Context) : SQLiteOpenHelper(context, "pebble_notes.db", null, 2) {
+class NoteStore(context: Context) : SQLiteOpenHelper(context, "pebble_notes.db", null, 3) {
     override fun onCreate(database: SQLiteDatabase) {
         database.execSQL(
             """
@@ -13,6 +13,7 @@ class NoteStore(context: Context) : SQLiteOpenHelper(context, "pebble_notes.db",
                 id TEXT PRIMARY KEY NOT NULL,
                 raw_text TEXT NOT NULL,
                 title TEXT NOT NULL,
+                refined_text TEXT NOT NULL,
                 category TEXT NOT NULL,
                 recorded_at INTEGER NOT NULL,
                 source TEXT NOT NULL,
@@ -27,6 +28,10 @@ class NoteStore(context: Context) : SQLiteOpenHelper(context, "pebble_notes.db",
         if (oldVersion < 2) {
             database.execSQL("ALTER TABLE notes ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0")
             database.execSQL("UPDATE notes SET sort_order = recorded_at")
+        }
+        if (oldVersion < 3) {
+            database.execSQL("ALTER TABLE notes ADD COLUMN refined_text TEXT NOT NULL DEFAULT ''")
+            database.execSQL("UPDATE notes SET refined_text = raw_text WHERE refined_text = ''")
         }
     }
 
@@ -60,6 +65,7 @@ class NoteStore(context: Context) : SQLiteOpenHelper(context, "pebble_notes.db",
         val id = cursor.getColumnIndexOrThrow("id")
         val rawText = cursor.getColumnIndexOrThrow("raw_text")
         val title = cursor.getColumnIndexOrThrow("title")
+        val refinedText = cursor.getColumnIndexOrThrow("refined_text")
         val category = cursor.getColumnIndexOrThrow("category")
         val recordedAt = cursor.getColumnIndexOrThrow("recorded_at")
         val source = cursor.getColumnIndexOrThrow("source")
@@ -70,6 +76,7 @@ class NoteStore(context: Context) : SQLiteOpenHelper(context, "pebble_notes.db",
                 id = cursor.getString(id),
                 rawText = cursor.getString(rawText),
                 title = cursor.getString(title),
+                refinedText = cursor.getString(refinedText),
                 category = cursor.getString(category),
                 recordedAt = cursor.getLong(recordedAt),
                 source = cursor.getString(source),
@@ -84,6 +91,7 @@ class NoteStore(context: Context) : SQLiteOpenHelper(context, "pebble_notes.db",
         put("id", id)
         put("raw_text", rawText)
         put("title", title)
+        put("refined_text", refinedText)
         put("category", category)
         put("recorded_at", recordedAt)
         put("source", source)

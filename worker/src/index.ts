@@ -6,6 +6,7 @@ type NoteRow = {
   id: string;
   raw_text: string;
   title: string;
+  refined_text: string;
   category: Category;
   recorded_at: number;
   created_at: number;
@@ -102,6 +103,7 @@ async function ingest(rawText: string, recordedAt: number, source: string, env: 
     id,
     raw_text: rawText,
     title: classification.title,
+    refined_text: classification.refinedText,
     category: classification.category,
     recorded_at: recordedAt,
     created_at: Date.now(),
@@ -110,10 +112,10 @@ async function ingest(rawText: string, recordedAt: number, source: string, env: 
     sort_order: recordedAt,
   };
   await env.DB.prepare(
-    `INSERT INTO notes (id, raw_text, title, category, recorded_at, created_at, source, status, sort_order)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO NOTHING`,
+    `INSERT INTO notes (id, raw_text, title, refined_text, category, recorded_at, created_at, source, status, sort_order)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO NOTHING`,
   ).bind(
-    note.id, note.raw_text, note.title, note.category, note.recorded_at,
+    note.id, note.raw_text, note.title, note.refined_text, note.category, note.recorded_at,
     note.created_at, note.source, note.status, note.sort_order,
   ).run();
   return json(note, 201);
@@ -121,7 +123,7 @@ async function ingest(rawText: string, recordedAt: number, source: string, env: 
 
 async function listNotes(env: Env): Promise<Response> {
   const result = await env.DB.prepare(
-    `SELECT id, raw_text, title, category, recorded_at, created_at, source, status, sort_order
+    `SELECT id, raw_text, title, refined_text, category, recorded_at, created_at, source, status, sort_order
      FROM notes ORDER BY sort_order DESC, recorded_at DESC LIMIT 500`,
   ).all<NoteRow>();
   return json({ notes: result.results });
@@ -129,7 +131,7 @@ async function listNotes(env: Env): Promise<Response> {
 
 async function retryNote(id: string, env: Env): Promise<Response> {
   const note = await env.DB.prepare(
-    `SELECT id, raw_text, title, category, recorded_at, created_at, source, status, sort_order
+    `SELECT id, raw_text, title, refined_text, category, recorded_at, created_at, source, status, sort_order
      FROM notes WHERE id = ?`,
   ).bind(id).first<NoteRow>();
   if (!note) return json({ error: "Note not found" }, 404);
@@ -138,8 +140,8 @@ async function retryNote(id: string, env: Env): Promise<Response> {
     const classification = await classifyNote(note.raw_text, env.OPENAI_API_KEY);
     const updated: NoteRow = { ...note, ...classification, status: "processed" };
     await env.DB.prepare(
-      "UPDATE notes SET title = ?, category = ?, status = ? WHERE id = ?",
-    ).bind(updated.title, updated.category, updated.status, id).run();
+      "UPDATE notes SET title = ?, refined_text = ?, category = ?, status = ? WHERE id = ?",
+    ).bind(updated.title, updated.refined_text, updated.category, updated.status, id).run();
     return json(updated);
   } catch (error) {
     console.error("Classification retry failed", error);
@@ -152,20 +154,21 @@ async function updateNote(id: string, request: Request, env: Env): Promise<Respo
     return json({ error: "Expected application/json" }, 415);
   }
   const existing = await env.DB.prepare(
-    `SELECT id, raw_text, title, category, recorded_at, created_at, source, status, sort_order
+    `SELECT id, raw_text, title, refined_text, category, recorded_at, created_at, source, status, sort_order
      FROM notes WHERE id = ?`,
   ).bind(id).first<NoteRow>();
   if (!existing) return json({ error: "Note not found" }, 404);
 
-  const body = (await request.json()) as { title?: unknown; raw_text?: unknown };
+  const body = (await request.json()) as { title?: unknown; raw_text?: unknown; refined_text?: unknown };
   const title = typeof body.title === "string" ? body.title.trim() : existing.title;
   const rawText = typeof body.raw_text === "string" ? body.raw_text.trim() : existing.raw_text;
-  if (!title || !rawText) return json({ error: "Title and transcript cannot be empty" }, 400);
-  if (title.length > 200 || rawText.length > 20_000) return json({ error: "Edited note is too long" }, 413);
+  const refinedText = typeof body.refined_text === "string" ? body.refined_text.trim() : existing.refined_text;
+  if (!title || !rawText || !refinedText) return json({ error: "Title, refined text, and transcript cannot be empty" }, 400);
+  if (title.length > 200 || rawText.length > 20_000 || refinedText.length > 20_000) return json({ error: "Edited note is too long" }, 413);
 
-  await env.DB.prepare("UPDATE notes SET title = ?, raw_text = ? WHERE id = ?")
-    .bind(title, rawText, id).run();
-  return json({ ...existing, title, raw_text: rawText });
+  await env.DB.prepare("UPDATE notes SET title = ?, raw_text = ?, refined_text = ? WHERE id = ?")
+    .bind(title, rawText, refinedText, id).run();
+  return json({ ...existing, title, raw_text: rawText, refined_text: refinedText });
 }
 
 async function reorderNotes(request: Request, env: Env): Promise<Response> {
