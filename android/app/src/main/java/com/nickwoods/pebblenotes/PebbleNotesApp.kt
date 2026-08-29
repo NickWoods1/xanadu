@@ -6,9 +6,12 @@ import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.ContentCopy
@@ -20,16 +23,23 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.core.content.edit
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nickwoods.pebblenotes.data.Note
+import java.text.DateFormat
+import java.util.Date
+import kotlin.math.abs
+import kotlinx.coroutines.launch
 
 private val Categories = listOf(
     "Watch next", "Weight", "TODO", "Presents", "Talking points",
@@ -141,6 +151,7 @@ fun PebbleNotesApp(viewModel: NotesViewModel = viewModel()) {
                             onRetry = viewModel::retry,
                             onDelete = viewModel::delete,
                             onEdit = { editingNote = it },
+                            onReorder = viewModel::reorder,
                         )
                     }
                     if (state.loading && state.notes.isNotEmpty()) {
@@ -274,18 +285,60 @@ private fun NoteList(
     onRetry: (Note) -> Unit,
     onDelete: (Note) -> Unit,
     onEdit: (Note) -> Unit,
+    onReorder: (List<Note>) -> Unit,
 ) {
+    val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+    val currentNotes by rememberUpdatedState(notes)
+    var draggedId by remember { mutableStateOf<String?>(null) }
+    var draggedOffset by remember { mutableFloatStateOf(0f) }
     LazyColumn(
+        state = listState,
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = 12.dp, top = 8.dp, end = 12.dp, bottom = 32.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         items(notes, key = { it.id }) { note ->
+            val dragging = draggedId == note.id
             NoteCard(
                 note = note,
                 onRetry = onRetry,
                 onDelete = onDelete,
                 onEdit = onEdit,
+                modifier = Modifier
+                    .zIndex(if (dragging) 1f else 0f)
+                    .graphicsLayer { translationY = if (dragging) draggedOffset else 0f },
+                dragModifier = Modifier.pointerInput(note.id) {
+                    detectDragGesturesAfterLongPress(
+                        onDragStart = { draggedId = note.id; draggedOffset = 0f },
+                        onDragCancel = { draggedId = null; draggedOffset = 0f },
+                        onDragEnd = { draggedId = null; draggedOffset = 0f },
+                        onDrag = { change, dragAmount ->
+                            change.consume()
+                            draggedOffset += dragAmount.y
+                            val visible = listState.layoutInfo.visibleItemsInfo
+                            val draggedInfo = visible.firstOrNull { it.key == draggedId }
+                                ?: return@detectDragGesturesAfterLongPress
+                            val draggedCenter = draggedInfo.offset + draggedOffset + draggedInfo.size / 2f
+                            val target = visible.minByOrNull { abs(draggedCenter - (it.offset + it.size / 2f)) }
+                            if (target != null && target.key != draggedId) {
+                                val latest = currentNotes
+                                val from = latest.indexOfFirst { it.id == draggedId }
+                                val to = latest.indexOfFirst { it.id == target.key }
+                                if (from >= 0 && to >= 0) {
+                                    draggedOffset += draggedInfo.offset - target.offset
+                                    onReorder(latest.toMutableList().apply { add(to, removeAt(from)) })
+                                }
+                            }
+                            val viewportStart = listState.layoutInfo.viewportStartOffset
+                            val viewportEnd = listState.layoutInfo.viewportEndOffset
+                            when {
+                                draggedCenter < viewportStart + 100 -> scope.launch { listState.scrollBy(-35f) }
+                                draggedCenter > viewportEnd - 100 -> scope.launch { listState.scrollBy(35f) }
+                            }
+                        },
+                    )
+                },
             )
         }
     }
@@ -298,11 +351,12 @@ private fun NoteCard(
     onDelete: (Note) -> Unit,
     onEdit: (Note) -> Unit,
     modifier: Modifier = Modifier,
+    dragModifier: Modifier = Modifier,
 ) {
     var showLlmVersion by rememberSaveable(note.id) { mutableStateOf(false) }
     var confirmDelete by rememberSaveable(note.id) { mutableStateOf(false) }
     Card(
-        modifier = modifier.fillMaxWidth().clickable { showLlmVersion = !showLlmVersion },
+        modifier = modifier.fillMaxWidth().then(dragModifier).clickable { showLlmVersion = !showLlmVersion },
         colors = CardDefaults.cardColors(containerColor = TerminalSurface),
         border = CardDefaults.outlinedCardBorder(),
     ) {
@@ -331,11 +385,18 @@ private fun NoteCard(
                 )
             }
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                OutlinedButton(
-                    onClick = { confirmDelete = true },
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = TerminalError),
-                ) { Text("delete") }
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    OutlinedButton(
+                        onClick = { confirmDelete = true },
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = TerminalError),
+                    ) { Text("delete") }
+                    Text(
+                        formatTime(note.recordedAt),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -370,6 +431,9 @@ private fun NoteCard(
         )
     }
 }
+
+private fun formatTime(milliseconds: Long): String =
+    DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(milliseconds)).lowercase()
 
 @Composable
 private fun EditNoteDialog(note: Note, saving: Boolean, onDismiss: () -> Unit, onSave: (String, String, String) -> Unit) {
