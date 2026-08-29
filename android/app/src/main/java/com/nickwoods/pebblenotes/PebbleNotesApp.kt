@@ -5,11 +5,9 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.ContentCopy
@@ -33,7 +31,7 @@ import com.nickwoods.pebblenotes.data.Note
 
 private val Categories = listOf(
     "Watch next", "Weight", "TODO", "Presents", "Talking points",
-    "Bars and Restaurants", "Thoughts", "Quotes", "Films", "Ideas",
+    "Bars and Restaurants", "Thoughts", "Words", "Quotes", "Films", "Ideas",
     "Fiction Ideas", "Names", "Aphorisms and maxims", "Misc",
 )
 private val Tabs = listOf("All") + Categories
@@ -201,22 +199,29 @@ fun PebbleNotesApp(viewModel: NotesViewModel = viewModel()) {
 @Composable
 private fun CategoryPicker(selected: String, notes: List<Note>, onSelected: (String) -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Tabs.forEach { category ->
-            val count = if (category == "All") notes.size else notes.count { it.category == category }
-            FilterChip(
-                selected = selected == category,
-                onClick = { onSelected(category) },
-                label = { Text("${category.lowercase()} [$count]") },
-                colors = FilterChipDefaults.filterChipColors(
-                    containerColor = TerminalSurface,
-                    selectedContainerColor = TerminalDim,
-                    selectedLabelColor = TerminalGreen,
-                ),
-            )
+        Tabs.chunked((Tabs.size + 1) / 2).forEach { column ->
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                column.forEach { category ->
+                    val count = if (category == "All") notes.size else notes.count { it.category == category }
+                    FilterChip(
+                        modifier = Modifier.fillMaxWidth(),
+                        selected = selected == category,
+                        onClick = { onSelected(category) },
+                        label = { Text("${category.lowercase()} [$count]", maxLines = 2) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            containerColor = TerminalSurface,
+                            selectedContainerColor = TerminalDim,
+                            selectedLabelColor = TerminalGreen,
+                        ),
+                    )
+                }
+            }
         }
     }
 }

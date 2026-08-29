@@ -1,6 +1,6 @@
 export const CATEGORIES = [
   "Watch next", "Weight", "TODO", "Presents", "Talking points",
-  "Bars and Restaurants", "Thoughts", "Quotes", "Films", "Ideas",
+  "Bars and Restaurants", "Thoughts", "Words", "Quotes", "Films", "Ideas",
   "Fiction Ideas", "Names", "Aphorisms and maxims", "Misc",
 ] as const;
 
@@ -24,6 +24,7 @@ Your job has three outputs:
 - Talking points: a talking point for a social interaction. Use this only when the user explicitly says to add something to talking points, or unmistakably frames it that way.
 - Bars and Restaurants: a bar, restaurant, café, or similar venue the user wants to visit. Usually use the venue name as the title.
 - Thoughts: reflections, observations, dreams, opinions, rambling, personal reactions, or random musings. This is the default for genuine thoughts that do not fit a more specific category.
+- Words: individual words or short phrases the user wants to remember, learn, or use. Keep the title and refined_text to the word or phrase itself when possible.
 - Quotes: words quoted from another person or a famous source, usually explicitly identified as a quote or clearly attributed.
 - Films: films the user wants to download, rather than watch next.
 - Ideas: a specific concept worth developing or making. It should be more than a general thought, but not simply a direct TODO.

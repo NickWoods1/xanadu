@@ -17,9 +17,9 @@ export async function classifyNote(rawText: string, apiKey: string): Promise<Cla
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "gpt-5-nano",
-      reasoning: { effort: "minimal" },
-      max_output_tokens: 300,
+      model: "gpt-5.6-terra",
+      reasoning: { effort: "low" },
+      max_output_tokens: 1000,
       store: false,
       instructions: CLASSIFIER_INSTRUCTIONS,
       input: rawText,
