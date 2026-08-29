@@ -8,31 +8,53 @@ export type Category = (typeof CATEGORIES)[number];
 export type ClassifiedNote = { category: Category; title: string; refinedText: string };
 
 export const CLASSIFIER_INSTRUCTIONS = `
-You classify one personal voice-note transcript.
+You classify and refine one personal voice-note transcript.
 
-Choose exactly one category using these definitions:
-- Watch next: films or shows the user wants to watch next. Title format: FILM - REASON.
-- Weight: an explicit weight recording. Both title and refined_text must contain only XX.Xkg.
-- TODO: an item with a direct action associated with it.
-- Presents: an idea for a present, usually formatted NAME OF PERSON - PRESENT.
-- Talking points: a talking point for a social interaction, only when the user explicitly says to add it to talking points.
-- Bars and Restaurants: a bar or restaurant the user wants to visit, usually just its name.
-- Thoughts: rambling, reflections, observations, dreams, opinions, or random musings; this is the default for genuine thoughts.
-- Quotes: words quoted from another person or a famous source, usually explicitly identified as a quote.
-- Films: films the user wants to download, not films they merely want to watch.
-- Ideas: a specific actionable concept to develop that is neither a TODO nor a general thought.
-- Fiction Ideas: narrative, character, plot, or story ideas.
-- Names: a possible name for a character, app, project, or similar thing.
-- Aphorisms and maxims: an original concise saying, principle, or maxim; use Quotes for words attributed to someone else.
-- Misc: use only when there is not enough confidence for any other category.
+Your job has three outputs:
+1. category: choose exactly one category.
+2. title: a concise, useful title for the note.
+3. refined_text: a faithful, improved version of the transcript.
 
-Return a concise title and a refined_text version. The title should summarize the note and
-stay under 80 characters when possible. Preserve the meaning and uncertainty, fix obvious
-transcription errors, remove filler, and express the core idea in clear, strong, sometimes
-aphoristic language without inventing facts. For Watch next and Presents, keep the requested
-one-line format. For Bars and Restaurants and Names, keep the refined text concise. For
-ordinary notes, refined_text should be a polished version of the transcript, not an essay.
-The raw transcript is supplied separately and must remain unchanged.
+## category definitions
+
+- Watch next: a film or show the user wants to watch next. Format the title as: FILM - REASON. Do not use this for films they merely want to download.
+- Weight: an explicit body-weight recording. Both title and refined_text must contain only the normalised format XX.Xkg. Nothing else.
+- TODO: a note containing a direct action for the user to take.
+- Presents: an idea for a present for someone. Format the title as: PERSON - PRESENT.
+- Talking points: a talking point for a social interaction. Use this only when the user explicitly says to add something to talking points, or unmistakably frames it that way.
+- Bars and Restaurants: a bar, restaurant, café, or similar venue the user wants to visit. Usually use the venue name as the title.
+- Thoughts: reflections, observations, dreams, opinions, rambling, personal reactions, or random musings. This is the default for genuine thoughts that do not fit a more specific category.
+- Quotes: words quoted from another person or a famous source, usually explicitly identified as a quote or clearly attributed.
+- Films: films the user wants to download, rather than watch next.
+- Ideas: a specific concept worth developing or making. It should be more than a general thought, but not simply a direct TODO.
+- Fiction Ideas: narrative, character, setting, plot, dialogue, or story ideas.
+- Names: a possible name for a character, app, project, game, or similar thing.
+- Aphorisms and maxims: an original concise saying, principle, or maxim. Use Quotes instead when the words are attributed to someone else.
+- Misc: use only when no category has a reasonably confident fit.
+
+Choose the most specific applicable category. Do not classify something as Misc merely because it is brief, unusual, or imperfectly transcribed.
+
+## title
+
+Write a concise title that captures the note's central subject or claim. It should usually be under 80 characters and useful when scanning a long list of notes.
+
+Make it concrete and informative rather than vague. Do not begin with labels such as "Thought:" or "Idea:". Preserve the specified formats for Watch next, Weight, and Presents.
+
+## refined_text
+
+Write a faithful, polished version of the note.
+
+Its purpose is to preserve the user's thought while making it clearer, more precise, and more readable. Correct obvious transcription mistakes; remove verbal filler, accidental repetition, and clutter; and resolve awkward phrasing only where the intended meaning is clear. Retain the user's tone, uncertainty, humour, strangeness, and level of conviction.
+
+Where the note offers an opening for stronger language, take it. Make it less cluttered, more vivid, more elegant, or more poetic when that serves the underlying thought. The aim is not merely to tidy the transcript, but to let the user's real ideas emerge in their best form from a scattered, spoken first draft.
+
+Draw on qualities such as clarity, bite, wit, compression, intellectual seriousness, sensual detail, and unsettling precision — without turning every note into a maxim, a literary pastiche, or a self-help slogan. A practical reminder should remain practical; a joke should remain a joke; a half-formed thought should retain its openness. But when there is a real insight, image, or argument inside the note, find its sharpest and most memorable expression.
+
+Do not add facts, motivations, context, conclusions, or ideas that are not present in the transcript. Do not overstate uncertainty or turn a tentative thought into a confident claim. If the original is already clear, make only light edits. For lists, names, venues, weights, titles, and terse commands, preserve the useful format rather than expanding it.
+
+refined_text must stand alone as a version the user would be happy to reread, while remaining recognisably their original note. The raw transcript is stored separately and must never be altered.
+
+Return only valid JSON matching the required schema.
 `.trim();
 
 export function parseClassification(text: string): ClassifiedNote {
