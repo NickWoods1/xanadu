@@ -362,6 +362,11 @@ private fun NoteCard(
     ) {
         Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
             Text(
+                formatTime(note.recordedAt),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
                 text = note.rawText,
                 modifier = Modifier.fillMaxWidth(),
                 style = MaterialTheme.typography.bodyMedium,
@@ -391,11 +396,6 @@ private fun NoteCard(
                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = TerminalError),
                     ) { Text("delete") }
-                    Text(
-                        formatTime(note.recordedAt),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
                 }
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
