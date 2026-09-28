@@ -14,7 +14,7 @@ reordered, retried, and copied to the clipboard as plain text.
 ## Requirements
 
 - Android Studio with Android SDK 37
-- Node.js 20+
+- Node.js 22+
 - Cloudflare account with Workers and D1
 - OpenAI API project with billing enabled
 
@@ -78,3 +78,20 @@ never bundled into the APK.
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+## Lain and live updates
+
+Notes beginning with `lain` (including `lane`, `layne`, and `laine`) go to the
+`lain` category, with priority over other categories. The LLM also recognizes
+likely transcription variants. Apply migration `0005_add_lain_category.sql`
+before deploying this version, then install the rebuilt Android app.
+
+While Xanadu is visible, an authenticated WebSocket refreshes the list as soon
+as the Worker saves a webhook note after classification. The connection stops
+in the background and reconnects/syncs on return. A one-minute foreground sync
+also recovers missed notifications. Deployment creates the `NoteEvents` Durable
+Object via the migration in `wrangler.jsonc`.
+
+Lain notes can upload to Google Drive server-side, independently of the phone's
+lock state. Apply migration `0006_drive_uploads.sql` and complete the
+[one-time Google setup](docs/LAIN_DRIVE.md), then connect using the cloud icon.

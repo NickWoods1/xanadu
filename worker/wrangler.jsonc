@@ -3,14 +3,21 @@
 	"name": "pebble-note-sorter",
 	"main": "src/index.ts",
 	"compatibility_date": "2026-08-29",
+    "vars": {
+      "DRIVE_FOLDER_ID": "1ESK6xpMZ8j0koKIvlwxnI4dzgU_KkvkX",
+      "PUBLIC_URL": "https://pebble-note-sorter.pebble-note-sorter-worker.workers.dev"
+    },
+    "triggers": { "crons": ["* * * * *"] },
 	"observability": {
 		"enabled": true
 	},
+	"durable_objects": { "bindings": [{ "name": "NOTE_EVENTS", "class_name": "NoteEvents" }] },
+	"migrations": [{ "tag": "v1", "new_sqlite_classes": ["NoteEvents"] }],
 	"d1_databases": [
 		{
 			"binding": "DB",
 			"database_name": "pebble-note-sorter",
-			"database_id": "REPLACE_WITH_D1_DATABASE_ID",
+			"database_id": "3f263dbc-0432-4377-9d36-fdb2b5bc4edf",
 			"migrations_dir": "migrations"
 		}
 	]

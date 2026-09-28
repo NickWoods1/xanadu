@@ -1,7 +1,7 @@
 export const CATEGORIES = [
   "Watch next", "Weight", "TODO", "Presents", "Talking points",
   "Bars and Restaurants", "Thoughts", "Words", "Quotes", "Films", "Ideas",
-  "Fiction Ideas", "Names", "Aphorisms and maxims", "Misc",
+  "Fiction Ideas", "Names", "Aphorisms and maxims", "lain", "Misc",
 ] as const;
 
 export type Category = (typeof CATEGORIES)[number];
@@ -17,6 +17,7 @@ Your job has three outputs:
 
 ## category definitions
 
+- lain: highest-priority category for any transcript whose first word is "lain", including likely misspellings or speech-to-text variants such as "lane", "layne", "laine", or "lame" when intended as lain. Ignore opening whitespace, quotation marks, and case. This opening category cue overrides all other categories, even TODO, Weight, and Watch next. Mentions later in a note alone do not qualify. Omit the opening cue from the title and refined_text when it is just a category label; preserve the actual content.
 - Watch next: a film or show the user wants to watch next. Format the title as: FILM - REASON. Do not use this for films they merely want to download.
 - Weight: an explicit body-weight recording. Both title and refined_text must contain only the normalised format XX.Xkg. Nothing else.
 - TODO: a note containing a direct action for the user to take.
@@ -42,6 +43,8 @@ Write a concise title that captures the note's central subject or claim. It shou
 Make it concrete and informative rather than vague. Do not begin with labels such as "Thought:" or "Idea:". Preserve the specified formats for Watch next, Weight, and Presents.
 
 ## refined_text
+
+For lain notes, preserve the instruction or question as an instruction or question addressed to lain. Do not answer it, execute it, or turn it into a reflection. Only remove the leading category cue and correct clear transcription errors.
 
 Write a faithful but materially improved second draft of the note. The raw transcript is already preserved for reference, so refined_text must earn its place: for ordinary prose, never simply repeat the transcript or make only cosmetic punctuation changes.
 
@@ -76,6 +79,10 @@ export function parseClassification(text: string): ClassifiedNote {
   };
 }
 
+export function hasLainPrefix(rawText: string): boolean {
+  return /^[\s"'“‘]*(?:lain|lane|layne|laine)(?=$|[^\p{L}\p{N}_])/iu.test(rawText);
+}
+
 export function fallbackClassification(rawText: string): ClassifiedNote {
-  return { category: "Misc", title: "Temporary Title - Not LLM Processed Yet", refinedText: rawText };
+  return { category: hasLainPrefix(rawText) ? "lain" : "Misc", title: "Temporary Title - Not LLM Processed Yet", refinedText: rawText };
 }

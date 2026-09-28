@@ -26,6 +26,11 @@ data class Note(
     @param:Json(name = "sort_order") val sortOrder: Long = recordedAt,
 )
 
+data class DriveCount(val status: String, val count: Int)
+data class DriveConnection(val email: String, @param:Json(name = "folder_id") val folderId: String)
+data class DriveStatus(val configured: Boolean, val connected: Boolean, val connection: DriveConnection?, val uploads: List<DriveCount>, val error: String?)
+data class DriveConnectResponse(val url: String)
+
 data class NotesResponse(val notes: List<Note>)
 data class NewNoteRequest(val transcription: String, val recordedAt: Long = System.currentTimeMillis())
 data class EditNoteRequest(val title: String, @param:Json(name = "raw_text") val rawText: String, @param:Json(name = "refined_text") val refinedText: String)
@@ -33,6 +38,12 @@ data class ReorderNotesRequest(val ids: List<String>)
 data class ReorderResponse(val ok: Boolean)
 
 interface NotesApi {
+    @GET("api/drive/status")
+    suspend fun driveStatus(@Header("Authorization") authorization: String): DriveStatus
+
+    @POST("api/drive/connect")
+    suspend fun connectDrive(@Header("Authorization") authorization: String): DriveConnectResponse
+
     @GET("api/notes")
     suspend fun notes(@Header("Authorization") authorization: String): NotesResponse
 

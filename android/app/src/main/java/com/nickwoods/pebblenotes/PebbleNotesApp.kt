@@ -3,6 +3,8 @@ package com.nickwoods.pebblenotes
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
@@ -14,6 +16,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.CloudUpload
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Settings
@@ -33,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.core.content.edit
+import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nickwoods.pebblenotes.data.Note
@@ -44,7 +48,7 @@ import kotlinx.coroutines.delay
 private val Categories = listOf(
     "Watch next", "Weight", "TODO", "Presents", "Talking points",
     "Bars and Restaurants", "Thoughts", "Words", "Quotes", "Films", "Ideas",
-    "Fiction Ideas", "Names", "Aphorisms and maxims", "Misc",
+    "Fiction Ideas", "Names", "Aphorisms and maxims", "lain", "Misc",
 )
 private val Tabs = listOf("All") + Categories
 private val TerminalGreen = Color(0xFF67FF8F)
@@ -92,6 +96,7 @@ fun PebbleNotesApp(viewModel: NotesViewModel = viewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val preferences = remember { context.getSharedPreferences("connection", 0) }
+    var showDriveDialog by rememberSaveable { mutableStateOf(false) }
     var selectedCategory by rememberSaveable { mutableStateOf("All") }
     var showSampleDialog by rememberSaveable { mutableStateOf(false) }
     var showSettingsDialog by rememberSaveable { mutableStateOf(false) }
@@ -110,6 +115,11 @@ fun PebbleNotesApp(viewModel: NotesViewModel = viewModel()) {
         }
     }
 
+    LifecycleStartEffect(viewModel) {
+        viewModel.startLiveUpdates()
+        onStopOrDispose { viewModel.stopLiveUpdates() }
+    }
+
     MaterialTheme(colorScheme = AppColors, typography = AppTypography) {
         Scaffold(
             topBar = {
@@ -121,6 +131,9 @@ fun PebbleNotesApp(viewModel: NotesViewModel = viewModel()) {
                         }
                     },
                     actions = {
+                        IconButton(onClick = { viewModel.refreshDriveStatus(); showDriveDialog = true }) {
+                            Icon(Icons.Outlined.CloudUpload, contentDescription = "Google Drive uploads")
+                        }
                         IconButton(onClick = { showSampleDialog = true }) {
                             Icon(Icons.Outlined.Add, contentDescription = "add note")
                         }
@@ -176,6 +189,23 @@ fun PebbleNotesApp(viewModel: NotesViewModel = viewModel()) {
                         if (success) editingNote = null
                     }
                 },
+            )
+        }
+
+        if (showDriveDialog) {
+            AlertDialog(
+                onDismissRequest = { showDriveDialog = false },
+                title = { Text("google drive") },
+                text = { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Lain notes are saved as .txt files, even when Xanadu is closed. Choose your personal Google account and approve the configured folder.")
+                    Text(state.driveSummary)
+                } },
+                confirmButton = {
+                    TextButton(enabled = !state.driveConnecting, onClick = {
+                        viewModel.connectDrive { url -> context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+                    }) { Text(if (state.driveConnecting) "connecting…" else "connect google drive") }
+                },
+                dismissButton = { TextButton(onClick = { showDriveDialog = false }) { Text("close") } },
             )
         }
 

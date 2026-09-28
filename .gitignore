@@ -11,3 +11,5 @@ worker/worker-configuration.d.ts
 .env
 .env.*
 *.jks
+.tools/
+client_secret_*.json

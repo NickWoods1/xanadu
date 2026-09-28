@@ -1,3 +1,5 @@
+import { driveBrowserRoute, driveStatus, startDriveConnection, drainDriveUploads, uploadStatement } from "./drive";
+export { NoteEvents } from "./events";
 import { fallbackClassification, type Category, type ClassifiedNote } from "./classification";
 import { classifyNote } from "./openai";
 
@@ -16,19 +18,31 @@ type NoteRow = {
 };
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
     if (request.method === "GET" && url.pathname === "/health") {
       return json({ ok: true });
     }
+    if (request.method === "GET" && ["/drive/start", "/drive/callback"].includes(url.pathname)) {
+      return driveBrowserRoute(request, env);
+    }
     if (!authorized(request, env.APP_TOKEN)) return json({ error: "Unauthorized" }, 401);
 
     try {
+      if (url.pathname === "/api/drive/status" && request.method === "GET") return driveStatus(env);
+      if (url.pathname === "/api/drive/connect" && request.method === "POST") return startDriveConnection(env);
+      if (request.method === "GET" && url.pathname === "/api/events") {
+        return await env.NOTE_EVENTS.get(env.NOTE_EVENTS.idFromName("notes")).fetch(request);
+      }
       if (request.method === "POST" && url.pathname === "/webhook/pebble") {
-        return await ingestPebble(request, env);
+        const response = await ingestPebble(request, env);
+        if (response.ok) ctx.waitUntil(drainDriveUploads(env));
+        return response;
       }
       if (url.pathname === "/api/notes" && request.method === "POST") {
-        return await ingestSample(request, env);
+        const response = await ingestSample(request, env);
+        if (response.ok) ctx.waitUntil(drainDriveUploads(env));
+        return response;
       }
       if (url.pathname === "/api/notes" && request.method === "GET") {
         return await listNotes(env);
@@ -38,7 +52,9 @@ export default {
       }
       const retryMatch = url.pathname.match(/^\/api\/notes\/([a-f0-9]{64})\/retry$/);
       if (retryMatch && request.method === "POST") {
-        return await retryNote(retryMatch[1], env);
+        const response = await retryNote(retryMatch[1], env);
+        if (response.ok) ctx.waitUntil(drainDriveUploads(env));
+        return response;
       }
       const noteMatch = url.pathname.match(/^\/api\/notes\/([a-f0-9]{64})$/);
       if (noteMatch && request.method === "PATCH") {
@@ -53,6 +69,9 @@ export default {
       console.error(error);
       return json({ error: "Internal server error" }, 500);
     }
+  },
+  async scheduled(_controller: ScheduledController, env: Env): Promise<void> {
+    await drainDriveUploads(env);
   },
 };
 
@@ -111,13 +130,21 @@ async function ingest(rawText: string, recordedAt: number, source: string, env: 
     status,
     sort_order: recordedAt,
   };
-  await env.DB.prepare(
+  await env.DB.batch([env.DB.prepare(
     `INSERT INTO notes (id, raw_text, title, refined_text, category, recorded_at, created_at, source, status, sort_order)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO NOTHING`,
   ).bind(
     note.id, note.raw_text, note.title, note.refined_text, note.category, note.recorded_at,
     note.created_at, note.source, note.status, note.sort_order,
-  ).run();
+  ), uploadStatement(env, note)]);
+  // A notification failure must not fail an already-persisted webhook.
+  try {
+    await env.NOTE_EVENTS.get(env.NOTE_EVENTS.idFromName("notes")).fetch(
+      new Request("https://events.internal/notify", { method: "POST" }),
+    );
+  } catch (error) {
+    console.error("Live notification failed", error);
+  }
   return json(note, 201);
 }
 
@@ -145,9 +172,9 @@ async function retryNote(id: string, env: Env): Promise<Response> {
       category: classification.category,
       status: "processed",
     };
-    await env.DB.prepare(
+    await env.DB.batch([env.DB.prepare(
       "UPDATE notes SET title = ?, refined_text = ?, category = ?, status = ? WHERE id = ?",
-    ).bind(updated.title, updated.refined_text, updated.category, updated.status, id).run();
+    ).bind(updated.title, updated.refined_text, updated.category, updated.status, id), uploadStatement(env, updated)]);
     return json(updated);
   } catch (error) {
     console.error("Classification retry failed", error);

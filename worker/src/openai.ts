@@ -1,5 +1,6 @@
 import {
   CATEGORIES,
+  hasLainPrefix,
   CLASSIFIER_INSTRUCTIONS,
   parseClassification,
   type ClassifiedNote,
@@ -54,5 +55,6 @@ export async function classifyNote(rawText: string, apiKey: string): Promise<Cla
     ?.flatMap((item) => item.content ?? [])
     .find((content) => content.type === "output_text")?.text;
   if (!outputText) throw new Error("OpenAI returned no output text");
-  return parseClassification(outputText);
+  const result = parseClassification(outputText);
+  return hasLainPrefix(rawText) ? { ...result, category: "lain" } : result;
 }
